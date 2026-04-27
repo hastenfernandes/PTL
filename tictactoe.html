@@ -145,6 +145,41 @@
     .score.o-score span {
       color: #00d9ff;
     }
+
+    .series-status {
+      font-size: 1.2rem;
+      margin-bottom: 1rem;
+      padding: 0.5rem 1.5rem;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 50px;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .series-winner {
+      font-size: 1.8rem;
+      font-weight: bold;
+      margin-top: 1rem;
+      padding: 1rem 2rem;
+      background: linear-gradient(135deg, #e94560 0%, #00d9ff 100%);
+      border-radius: 50px;
+      animation: winPulse 0.6s ease-in-out infinite alternate;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+
+    .btn.secondary {
+      background: linear-gradient(135deg, #4a4a6a 0%, #3a3a5a 100%);
+      box-shadow: 0 4px 20px rgba(74, 74, 106, 0.4);
+    }
+
+    .btn.secondary:hover {
+      box-shadow: 0 6px 30px rgba(74, 74, 106, 0.6);
+    }
   </style>
 </head>
 <body>
@@ -156,6 +191,8 @@
   </div>
   
   <div class="status" id="status">Player X's turn</div>
+  
+  <div class="series-status" id="seriesStatus">Game 1 of 5</div>
   
   <div class="board" id="board">
     <div class="cell" data-index="0"></div>
@@ -170,11 +207,14 @@
   </div>
   
   <button class="btn" id="restartBtn">New Game</button>
+  <button class="btn secondary" id="resetBtn">Reset Series</button>
 
   <script>
     const cells = document.querySelectorAll('.cell');
     const statusEl = document.getElementById('status');
+    const seriesStatusEl = document.getElementById('seriesStatus');
     const restartBtn = document.getElementById('restartBtn');
+    const resetBtn = document.getElementById('resetBtn');
     const scoreXEl = document.getElementById('scoreX');
     const scoreOEl = document.getElementById('scoreO');
 
@@ -183,6 +223,9 @@
     let gameActive = true;
     let scoreX = 0;
     let scoreO = 0;
+    let gamesPlayed = 0;
+    const maxGames = 5;
+    let seriesWinner = null;
 
     const winningCombinations = [
       [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
@@ -203,11 +246,47 @@
       return null;
     }
 
+    function updateSeriesStatus() {
+      if (seriesWinner) {
+        seriesStatusEl.textContent = `🏆 ${seriesWinner} wins the series!`;
+        seriesStatusEl.classList.add('series-winner');
+      } else {
+        seriesStatusEl.textContent = `Game ${gamesPlayed + 1} of ${maxGames}`;
+        seriesStatusEl.classList.remove('series-winner');
+      }
+    }
+
+    function checkSeriesWinner() {
+      if (scoreX >= 3) {
+        seriesWinner = 'Player X';
+        statusEl.textContent = `🏆 Player X wins the series ${scoreX}-${scoreO}!`;
+        return true;
+      }
+      if (scoreO >= 3) {
+        seriesWinner = 'Player O';
+        statusEl.textContent = `🏆 Player O wins the series ${scoreX}-${scoreO}!`;
+        return true;
+      }
+      if (gamesPlayed >= maxGames) {
+        if (scoreX > scoreO) {
+          seriesWinner = 'Player X';
+          statusEl.textContent = `🏆 Player X wins the series ${scoreX}-${scoreO}!`;
+        } else if (scoreO > scoreX) {
+          seriesWinner = 'Player O';
+          statusEl.textContent = `🏆 Player O wins the series ${scoreX}-${scoreO}!`;
+        } else {
+          statusEl.textContent = "🏆 Series ended in a tie!";
+        }
+        return true;
+      }
+      return false;
+    }
+
     function handleCellClick(e) {
       const cell = e.target;
       const index = parseInt(cell.dataset.index);
 
-      if (board[index] || !gameActive) return;
+      if (board[index] || !gameActive || seriesWinner) return;
 
       board[index] = currentPlayer;
       cell.textContent = currentPlayer;
@@ -217,6 +296,8 @@
       
       if (result) {
         gameActive = false;
+        gamesPlayed++;
+        
         if (result.winner === 'draw') {
           statusEl.textContent = "It's a draw!";
         } else {
@@ -230,6 +311,9 @@
             scoreOEl.textContent = scoreO;
           }
         }
+        
+        checkSeriesWinner();
+        updateSeriesStatus();
       } else {
         currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
         statusEl.textContent = `Player ${currentPlayer}'s turn`;
@@ -237,6 +321,8 @@
     }
 
     function restartGame() {
+      if (seriesWinner) return;
+      
       board = ['', '', '', '', '', '', '', '', ''];
       currentPlayer = 'X';
       gameActive = true;
@@ -248,8 +334,30 @@
       });
     }
 
+    function resetSeries() {
+      board = ['', '', '', '', '', '', '', '', ''];
+      currentPlayer = 'X';
+      gameActive = true;
+      scoreX = 0;
+      scoreO = 0;
+      gamesPlayed = 0;
+      seriesWinner = null;
+      
+      scoreXEl.textContent = 0;
+      scoreOEl.textContent = 0;
+      statusEl.textContent = "Player X's turn";
+      updateSeriesStatus();
+      seriesStatusEl.classList.remove('series-winner');
+      
+      cells.forEach(cell => {
+        cell.textContent = '';
+        cell.className = 'cell';
+      });
+    }
+
     cells.forEach(cell => cell.addEventListener('click', handleCellClick));
     restartBtn.addEventListener('click', restartGame);
+    resetBtn.addEventListener('click', resetSeries);
   </script>
 </body>
 </html>
